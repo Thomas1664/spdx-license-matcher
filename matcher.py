@@ -1,5 +1,6 @@
-import click
 import codecs
+import os
+import click
 import redis
 
 from spdx_license_matcher.build_licenses import build_spdx_licenses, is_keys_empty,get_url
@@ -8,7 +9,6 @@ from spdx_license_matcher.difference import generate_diff, get_similarity_percen
 from spdx_license_matcher.utils import colors, get_spdx_license_text
 
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
@@ -18,14 +18,9 @@ load_dotenv()
 @click.option('--build/--no-build', default=False, help='Builds the SPDX license list in the database. If licenses are already present it will update the redis database.')
 def matcher(text_file, threshold, build):
     """SPDX License matcher to match license text against the SPDX license list using an algorithm which finds close matches. """
-    try:
-
-        # For python 2
-        inputText = codecs.open(text_file, 'r', encoding='string_escape').read()
-        inputText = unicode(inputText, 'utf-8')
-    except:
-        # For python 3
-        inputText = codecs.open(text_file, 'r', encoding='unicode_escape').read()
+    
+    # For python 3
+    inputText: str = codecs.open(text_file, 'r', encoding='unicode_escape').read()
 
     if build or is_keys_empty():
         click.echo('Building SPDX License List. This may take a while...')
@@ -39,18 +34,20 @@ def matcher(text_file, threshold, build):
     matchingString = get_matching_string(matches, inputText)
     if matchingString == '':
         licenseID = max(matches, key=matches.get)
-        spdxLicenseText = get_spdx_license_text(licenseID)
+        spdxLicenseText: str = get_spdx_license_text(licenseID)
+        ty = type(spdxLicenseText)
         similarityPercent = get_similarity_percent(spdxLicenseText, inputText)
-        click.echo(colors('\nThe given license text matches {}% with that of {} based on Levenstein distance.'.format(similarityPercent, licenseID), 94))
-        differences = generate_diff(spdxLicenseText, inputText)
-        for line in differences:
-            if line[0] == '+':
-                line = colors(line, 92)
-            if line[0] == '-':
-                line = colors(line, 91)
-            if line[0] == '@':
-                line = colors(line, 90)
-            click.echo(line)
+        click.echo(colors('\n License: {} ({}% match)'.format(licenseID, similarityPercent), 94))
+        if False:
+            differences = generate_diff(spdxLicenseText, inputText)
+            for line in differences:
+                if line[0] == '+':
+                    line = colors(line, 92)
+                if line[0] == '-':
+                    line = colors(line, 91)
+                if line[0] == '@':
+                    line = colors(line, 90)
+                click.echo(line)
     else:
         click.echo(colors(matchingString, 92))
 
