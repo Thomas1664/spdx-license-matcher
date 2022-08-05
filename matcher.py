@@ -1,14 +1,13 @@
 import codecs
-import os
+import imp
 import click
-import redis
+from dotenv import load_dotenv
 
-from spdx_license_matcher.build_licenses import build_spdx_licenses, is_keys_empty,get_url
+from spdx_license_matcher.db import Database
+from spdx_license_matcher.build import *
 from spdx_license_matcher.computation import get_close_matches, get_matching_string
 from spdx_license_matcher.difference import generate_diff, get_similarity_percent
-from spdx_license_matcher.utils import colors, get_spdx_license_text
-
-from dotenv import load_dotenv
+from spdx_license_matcher.utils import colors, decompressBytesToString, get_spdx_license_text
 
 load_dotenv()
 
@@ -22,16 +21,22 @@ def matcher(text_file, threshold, build):
     # For python 3
     inputText: str = codecs.open(text_file, 'r', encoding='unicode_escape').read()
 
-    if build or is_keys_empty():
-        click.echo('Building SPDX License List. This may take a while...')
-        build_spdx_licenses()
+    # Database constants
+    db_file = 'licenses.db'
+    table_name = 'license'
+    db = Database(db_file, table_name)
 
-    r = redis.StrictRedis(host=os.environ.get(key="SPDX_REDIS_HOST", default="localhost"), port=6379, db=0)
-    keys = list(r.keys())
-    values = r.mget(keys)
+    if build or db.is_table_empty(table_name):
+        click.echo('Building SPDX License List. This may take a while...')
+        get_licenses(db, table_name)
+
+    res = db.select_all(table_name)
+    keys, values = zip(*res)
+
     licenseData = dict(list(zip(keys, values)))
     matches = get_close_matches(inputText, licenseData, threshold)
     matchingString = get_matching_string(matches, inputText)
+    
     if matchingString == '':
         licenseID = max(matches, key=matches.get)
         spdxLicenseText: str = get_spdx_license_text(licenseID)

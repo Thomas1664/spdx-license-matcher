@@ -3,7 +3,7 @@ from spdx_license_matcher.sorensen_dice import get_dice_coefficient
 from spdx_license_matcher.utils import (checkTextStandardLicense, decompressBytesToString,
                    getListedLicense)
 
-def get_close_matches(inputText, licenseData, threshold=0.9):
+def get_close_matches(inputText: str, licenseData: dict, threshold=0.9):
     """Normalizes the given license text and forms bigrams before comparing it
     with a database of known licenses.
 
@@ -18,7 +18,7 @@ def get_close_matches(inputText, licenseData, threshold=0.9):
     normalizedInputText = normalize(inputText)
     for key in list(licenseData.keys()):
         try:
-            licenseName = key.decode('utf-8')
+            licenseName = key
             normalizedLicenseText = decompressBytesToString(licenseData.get(key))
         except:
             licenseName = key
